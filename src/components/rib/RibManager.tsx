@@ -7,7 +7,7 @@ import SearchFilter from './SearchFilter';
 import Pagination from './Pagination';
 
 const RibManager: React.FC = () => {
-  const { companies, loading, error, createCompany, updateCompany, deleteCompany } = useCompanies();
+  const { companies, loading, error, addCompany, updateCompany, deleteCompany } = useCompanies();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
@@ -31,14 +31,23 @@ const RibManager: React.FC = () => {
   const handleFormSubmit = async (formData: any) => {
     try {
       if (editingCompany) {
-        await updateCompany(editingCompany.id, formData);
+        const result = await updateCompany(editingCompany.id, formData);
+        if (result.success) {
+          setShowForm(false);
+          setEditingCompany(null);
+        }
+        return result;
       } else {
-        await createCompany(formData);
+        const result = await addCompany(formData);
+        if (result.success) {
+          setShowForm(false);
+          setEditingCompany(null);
+        }
+        return result;
       }
-      setShowForm(false);
-      setEditingCompany(null);
     } catch (err) {
       console.error('Error saving company:', err);
+      return { success: false, error: 'Une erreur inattendue est survenue' };
     }
   };
 
@@ -124,8 +133,9 @@ const RibManager: React.FC = () => {
       {showForm && (
         <RibForm
           company={editingCompany}
-          onSave={handleFormSubmit}
+          onSubmit={handleFormSubmit}
           onCancel={handleCloseForm}
+          loading={loading}
         />
       )}
     </div>
