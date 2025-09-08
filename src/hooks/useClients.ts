@@ -18,28 +18,20 @@ export const useClients = (startDate?: string, endDate?: string) => {
       setLoading(true);
       setError(null);
       
-      // Test Supabase connection first
-      const { error: connectionError } = await supabase.from('clients').select('count').limit(1);
-      if (connectionError) {
-        throw new Error(`Supabase connection failed: ${connectionError.message}. Please check your Supabase URL and API key.`);
-      }
-      
+      // Fetch basic client data
       const { data: clientsData, error: clientsError } = await supabase
         .from('clients')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (clientsError) {
-        throw new Error(`Failed to fetch clients: ${clientsError.message}`);
-      }
-      
-      // Fetch all transfers for all clients
+      if (clientsError) throw clientsError;
+
+      // Fetch transfers data with date filtering
       let transfersQuery = supabase
         .from('transfers')
-        .select('*')
+        .select('client_id, transfer_type, status, amount, net_amount, commission_amount')
         .eq('status', 'completed');
 
-      // Apply date filtering
       if (startDate) {
         transfersQuery = transfersQuery.gte('created_at', startDate);
       }
@@ -48,14 +40,12 @@ export const useClients = (startDate?: string, endDate?: string) => {
       }
 
       const { data: transfersData, error: transfersError } = await transfersQuery;
-
-      if (transfersError) {
-        throw new Error(`Failed to fetch transfers: ${transfersError.message}`);
-      }
+      
+      if (transfersError) throw transfersError;
 
       // Calculate balances for each client
       const clientsWithBalance: ClientWithBalance[] = (clientsData || []).map(client => {
-        const clientTransfers = transfersData?.filter(t => t.client_id === client.id) || [];
+        const clientTransfers = (transfersData || []).filter(t => t.client_id === client.id);
         
         const totalReceived = clientTransfers
           .filter(t => t.transfer_type === 'incoming')
@@ -79,45 +69,27 @@ export const useClients = (startDate?: string, endDate?: string) => {
           currentBalance
         };
       });
-
-      // Sort by total sent (highest first)
-      clientsWithBalance.sort((a, b) => b.totalSent - a.totalSent);
       
       setClients(clientsWithBalance);
     } catch (err) {
-      let errorMessage = 'An unknown error occurred';
-      
-      if (err instanceof Error) {
-        errorMessage = err.message;
-        
-        // Provide specific guidance for common errors
-        if (err.message.includes('Failed to fetch')) {
-          errorMessage = `Network connection error: Cannot connect to Supabase. Please check:\n1. Your internet connection\n2. VITE_SUPABASE_URL in .env file\n3. VITE_SUPABASE_ANON_KEY in .env file\n4. Supabase project status`;
-        } else if (err.message.includes('invalid API key')) {
-          errorMessage = 'Invalid Supabase API key. Please check VITE_SUPABASE_ANON_KEY in your .env file.';
-        } else if (err.message.includes('JWT')) {
-          errorMessage = 'Authentication error. Please check your Supabase configuration.';
-        }
-      }
-      
-      setError(errorMessage);
       console.error('Error fetching clients:', err);
-      
-      // Log environment variables (safely) for debugging
-      console.error('Supabase URL:', import.meta.env.VITE_SUPABASE_URL ? 'Set' : 'Missing');
-      console.error('Supabase Key:', import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'Missing');
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching clients');
     } finally {
       setLoading(false);
     }
   };
 
-  const addClient = async (clientData: { name: string; email?: string; phone?: string }) => {
+  const addClient = async (clientData: {
+    name: string;
+    email?: string;
+    phone?: string;
+  }) => {
     try {
       setError(null);
       
       const { data, error } = await supabase
         .from('clients')
-        .insert([clientData])
+        .insert(clientData)
         .select()
         .single();
 
@@ -133,13 +105,13 @@ export const useClients = (startDate?: string, endDate?: string) => {
     }
   };
 
-  const updateClient = async (id: string, clientData: { name: string; email?: string; phone?: string }) => {
+  const updateClient = async (id: string, updates: Partial<Client>) => {
     try {
       setError(null);
       
       const { data, error } = await supabase
         .from('clients')
-        .update(clientData)
+        .update(updates)
         .eq('id', id)
         .select()
         .single();

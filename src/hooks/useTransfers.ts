@@ -131,6 +131,55 @@ export const useTransfers = (clientId?: string) => {
     }
   };
 
+  const updateTransfer = async (id: string, updates: { created_at?: string; note?: string }) => {
+    try {
+      setError(null);
+      
+      const { data, error } = await supabase
+        .from('transfers')
+        .update(updates)
+        .eq('id', id)
+        .select(`
+          *,
+          debit_company:companies!transfers_debit_company_id_fkey(id, name, rib),
+          credit_company:companies!transfers_credit_company_id_fkey(id, name, rib)
+        `)
+        .single();
+
+      if (error) throw error;
+      
+      setTransfers(prev => prev.map(transfer => 
+        transfer.id === id ? data : transfer
+      ));
+      return { success: true, data };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update transfer';
+      setError(errorMessage);
+      console.error('Error updating transfer:', err);
+      return { success: false, error: errorMessage };
+    }
+  };
+  const deleteTransfer = async (id: string) => {
+    try {
+      setError(null);
+      
+      const { error } = await supabase
+        .from('transfers')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setTransfers(prev => prev.filter(transfer => transfer.id !== id));
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete transfer';
+      setError(errorMessage);
+      console.error('Error deleting transfer:', err);
+      return { success: false, error: errorMessage };
+    }
+  };
+
   useEffect(() => {
     fetchTransfers();
   }, [clientId]);
@@ -141,6 +190,8 @@ export const useTransfers = (clientId?: string) => {
     error,
     addTransfer,
     updateTransferStatus,
+    updateTransfer,
+    deleteTransfer,
     refetch: fetchTransfers
   };
 };

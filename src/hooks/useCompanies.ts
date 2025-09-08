@@ -20,20 +20,25 @@ export const useCompanies = () => {
       
       setCompanies(data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching companies:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
   };
 
-  const addCompany = async (companyData: { name: string; rib: string; address?: string; siret?: string }) => {
+  const addCompany = async (companyData: {
+    name: string;
+    rib: string;
+    address?: string;
+    siret?: string;
+  }) => {
     try {
       setError(null);
       
       const { data, error } = await supabase
         .from('companies')
-        .insert([companyData])
+        .insert(companyData)
         .select()
         .single();
 
@@ -49,13 +54,13 @@ export const useCompanies = () => {
     }
   };
 
-  const updateCompany = async (id: string, companyData: { name: string; rib: string; address?: string; siret?: string }) => {
+  const updateCompany = async (id: string, updates: Partial<Company>) => {
     try {
       setError(null);
       
       const { data, error } = await supabase
         .from('companies')
-        .update(companyData)
+        .update(updates)
         .eq('id', id)
         .select()
         .single();

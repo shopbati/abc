@@ -11,7 +11,7 @@ interface ClientDetailProps {
 }
 
 const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
-  const { transfers, loading, error, addTransfer, updateTransferStatus } = useTransfers(client.id);
+  const { transfers, loading, error, addTransfer, updateTransferStatus, updateTransfer, deleteTransfer } = useTransfers(client.id);
   const [showTransferSection, setShowTransferSection] = React.useState(false);
   const [showFilterSection, setShowFilterSection] = React.useState(false);
   const [startDate, setStartDate] = React.useState(() => {
@@ -90,7 +90,6 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
   };
 
   const dateRangeText = formatDateRange();
-  const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
 
   // Quick date setters
   const setCurrentMonth = () => {
@@ -124,6 +123,14 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
 
   const handleStatusUpdate = async (transferId: string, status: 'pending' | 'completed' | 'failed') => {
     await updateTransferStatus(transferId, status);
+  };
+
+  const handleDeleteTransfer = async (transferId: string) => {
+    await deleteTransfer(transferId);
+  };
+
+  const handleUpdateTransfer = async (transferId: string, updates: { created_at?: string; note?: string }) => {
+    return await updateTransfer(transferId, updates);
   };
 
   // Calculate client balance based on filtered transfers
@@ -183,333 +190,352 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
         </div>
       </div>
 
-      {/* Date Range Filter */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 max-w-full min-w-0 overflow-hidden">
-        <button
-          onClick={toggleFilterSection}
-          className="w-full p-6 flex items-center justify-between text-left hover:bg-gray-50 transition-colors min-w-0"
-        >
-          <div className="flex items-center space-x-2 md:space-x-3 min-w-0 flex-shrink">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Filter className="h-5 w-5 text-blue-600" />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-green-600" />
             </div>
-            <div className="min-w-0">
-              <h3 className="text-xl font-bold text-gray-900">Filtrer par période</h3>
-              <p className="text-xs text-gray-500 break-words">
-                {filteredTransfers.length} virement{filteredTransfers.length > 1 ? 's' : ''} trouvé{filteredTransfers.length > 1 ? 's' : ''}
+            <div>
+              <h3 className="text-lg font-semibold text-green-900">Total Reçu</h3>
+              <p className="text-sm text-green-700">Virements entrants</p>
+            </div>
+          </div>
+          <div className="text-3xl font-bold text-green-700">
+            +{new Intl.NumberFormat('fr-FR', { 
+              style: 'currency', 
+              currency: 'EUR',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0 
+            }).format(totalIncoming)}
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+              <TrendingDown className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-red-900">Total Envoyé</h3>
+              <p className="text-sm text-red-700">Virements sortants</p>
+            </div>
+          </div>
+          <div className="text-3xl font-bold text-red-700">
+            -{new Intl.NumberFormat('fr-FR', { 
+              style: 'currency', 
+              currency: 'EUR',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0 
+            }).format(totalOutgoing)}
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+              <Percent className="h-6 w-6 text-orange-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-orange-900">Commissions</h3>
+              <p className="text-sm text-orange-700">Total perçu</p>
+            </div>
+          </div>
+          <div className="text-3xl font-bold text-orange-700">
+            -{new Intl.NumberFormat('fr-FR', { 
+              style: 'currency', 
+              currency: 'EUR',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0 
+            }).format(totalCommissions)}
+          </div>
+        </div>
+
+        <div className={`${balance >= 0 ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200' : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'} border rounded-2xl p-6 shadow-sm`}>
+          <div className="flex items-center space-x-3 mb-3">
+            <div className={`w-12 h-12 ${balance >= 0 ? 'bg-blue-100' : 'bg-red-100'} rounded-xl flex items-center justify-center`}>
+              <Wallet className={`h-6 w-6 ${balance >= 0 ? 'text-blue-600' : 'text-red-600'}`} />
+            </div>
+            <div>
+              <h3 className={`text-lg font-semibold ${balance >= 0 ? 'text-blue-900' : 'text-red-900'}`}>
+                Solde Net
+              </h3>
+              <p className={`text-sm ${balance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                Période filtrée
               </p>
             </div>
           </div>
-          <ChevronDown className={`h-6 w-6 text-gray-400 transition-transform flex-shrink-0 ${showFilterSection ? 'rotate-180' : ''}`} />
-        </button>
-        
-        {showFilterSection && (
-          <div className="px-6 pb-6 space-y-4">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0 min-w-0">
-              <div className="min-w-0">
-                <p className="hidden md:block text-sm text-gray-600 break-words">
-                  {typeof dateRangeText === 'object' ? dateRangeText.desktop : dateRangeText}
-                </p>
-                <p className="md:hidden text-sm text-gray-600 break-words">
-                  {typeof dateRangeText === 'object' ? dateRangeText.mobile : dateRangeText}
-                </p>
+          <div className={`text-3xl font-bold ${balance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+            {new Intl.NumberFormat('fr-FR', { 
+              style: 'currency', 
+              currency: 'EUR',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0 
+            }).format(balance)}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Grid - Balance and Transfer Management Side by Side */}
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 max-w-full min-w-0">
+        {/* Balance Card with integrated filter */}
+        <div className="xl:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 max-w-full min-w-0 overflow-hidden">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Wallet className="h-6 w-6 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-lg font-bold text-gray-900">Solde disponible</h3>
+              <p className="hidden md:block text-xs text-gray-600 break-words">
+                {(startDate || endDate) ? (typeof dateRangeText === 'object' ? dateRangeText.desktop : dateRangeText) : 'Montant total'}
+              </p>
+              <p className="md:hidden text-xs text-gray-600 break-words">
+                {(startDate || endDate) ? (typeof dateRangeText === 'object' ? dateRangeText.mobile : dateRangeText) : 'Total'}
+              </p>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="text-center">
+              <div className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {new Intl.NumberFormat('fr-FR', { 
+                  style: 'currency', 
+                  currency: 'EUR',
+                  minimumFractionDigits: 2
+                }).format(balance)}
+              </div>
+              <div className="text-sm text-gray-600 mt-1 font-medium">
+                {balance >= 0 ? 'Solde positif' : 'Solde négatif'}
+              </div>
+            </div>
+            
+            <div className="border-t border-gray-200 pt-3">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <div className="flex items-center text-green-600 min-w-0">
+                  <div className="w-5 h-5 bg-green-100 rounded-lg flex items-center justify-center mr-2">
+                    <TrendingUp className="h-3 w-3 text-green-600" />
+                  </div>
+                  <span className="truncate font-medium">Reçu</span>
+                </div>
+                <span className="font-bold text-green-600 ml-2">
+                  +{new Intl.NumberFormat('fr-FR', { 
+                    style: 'currency', 
+                    currency: 'EUR',
+                    maximumFractionDigits: 0 
+                  }).format(totalIncoming)}
+                </span>
               </div>
               
+              <div className="flex items-center justify-between text-sm mb-2">
+                <div className="flex items-center text-red-600 min-w-0">
+                  <div className="w-5 h-5 bg-red-100 rounded-lg flex items-center justify-center mr-2">
+                    <TrendingDown className="h-3 w-3 text-red-600" />
+                  </div>
+                  <span className="truncate font-medium">Envoyé</span>
+                </div>
+                <span className="font-bold text-red-600 ml-2">
+                  -{new Intl.NumberFormat('fr-FR', { 
+                    style: 'currency', 
+                    currency: 'EUR',
+                    maximumFractionDigits: 0 
+                  }).format(totalOutgoing)}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center text-orange-600 min-w-0">
+                  <div className="w-5 h-5 bg-orange-100 rounded-lg flex items-center justify-center mr-2">
+                    <Percent className="h-3 w-3 text-orange-600" />
+                  </div>
+                  <span className="truncate font-medium">Commissions</span>
+                </div>
+                <span className="font-bold text-orange-600 ml-2">
+                  -{new Intl.NumberFormat('fr-FR', { 
+                    style: 'currency', 
+                    currency: 'EUR',
+                    maximumFractionDigits: 0 
+                  }).format(totalCommissions)}
+                </span>
+              </div>
+            </div>
+            
+            {balance < 1000 && balance > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-3">
+                <div className="flex items-center">
+                  <div className="text-amber-600 text-xs font-medium">
+                    ⚠️ Solde faible - Moins de 1 000€ restant
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {balance <= 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mt-3">
+                <div className="flex items-center">
+                  <div className="text-red-600 text-xs font-medium">
+                    ❌ Solde insuffisant pour nouveaux virements
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Date Filter - Integrated */}
+          <div className="hidden xl:block border-t border-gray-200 pt-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <Filter className="h-4 w-4 text-blue-600" />
+              <h4 className="text-sm font-semibold text-gray-900">Filtrer par période</h4>
+            </div>
+            
+            <div className="space-y-3">
+              <p className="text-xs text-gray-600">
+                {typeof dateRangeText === 'object' ? dateRangeText.desktop : dateRangeText}
+              </p>
+              
               {/* Date Controls */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-end space-y-2 sm:space-y-0 sm:space-x-1 w-full sm:w-auto max-w-full min-w-0">
-                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-1 w-full sm:w-auto max-w-full min-w-0">
+              <div className="space-y-2">
+                <div className="flex flex-col space-y-2">
                   {/* Date Start Input */}
-                  <div className="flex flex-col w-20 sm:w-24 max-w-full min-w-0">
-                    <label className="text-xs text-gray-500 mb-1 truncate">Début</label>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Début</label>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs w-full min-w-0 max-w-full"
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs"
                     />
                   </div>
 
                   {/* Date End Input */}
-                  <div className="flex flex-col w-20 sm:w-24 max-w-full min-w-0">
-                    <label className="text-xs text-gray-500 mb-1 truncate">Fin</label>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Fin</label>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="px-1 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs w-full min-w-0 max-w-full"
+                      className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs"
                     />
                   </div>
                 </div>
 
                 {/* Quick Actions */}
-                <div className="flex space-x-1 w-full sm:w-auto">
+                <div className="flex space-x-1">
                   <button
                     onClick={setCurrentMonth}
-                    className="flex-1 sm:flex-none px-1 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors font-medium whitespace-nowrap"
+                    className="flex-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors font-medium"
                   >
                     Ce mois
                   </button>
                   <button
                     onClick={clearDateFilter}
-                    className="flex-1 sm:flex-none px-1 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors font-medium flex items-center justify-center whitespace-nowrap"
+                    className="flex-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors font-medium flex items-center justify-center"
                   >
                     <X className="h-3 w-3" />
-                    Effacer
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Remove the old Date Range Summary Card since info is now in filter section */}
-      {(startDate || endDate) && showFilterSection && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 max-w-full min-w-0 overflow-hidden">
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-1 w-full sm:w-auto max-w-full min-w-0">
-            <div className="flex items-center space-x-2 min-w-0 flex-1">
-              <Calendar className="h-5 w-5 text-blue-600 flex-shrink-0" />
-              <div className="min-w-0">
-                <h4 className="text-sm font-medium text-blue-900">Période active</h4>
-                <p className="hidden md:block text-xs text-blue-700 break-words">
-                  {typeof dateRangeText === 'object' ? dateRangeText.desktop : dateRangeText}
-                </p>
-                <p className="md:hidden text-xs text-blue-700 break-words">
-                  {typeof dateRangeText === 'object' ? dateRangeText.mobile : dateRangeText}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={clearDateFilter}
-              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
-              title="Supprimer le filtre"
-            >
-              <X className="h-4 w-4" />
-            </button>
+      {/* Mobile Date Filter - Only show on mobile */}
+      <div className="xl:hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 max-w-full min-w-0 overflow-hidden">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <Filter className="h-4 w-4 text-blue-600" />
+            <h4 className="text-sm font-semibold text-gray-900">Période</h4>
           </div>
-        </div>
-      )}
-
-      {/* Balance Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 max-w-full min-w-0 overflow-hidden">
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="w-14 h-14 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <Wallet className="h-7 w-7 text-white" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-xl font-bold text-gray-900">Solde disponible</h3>
-            <p className="hidden md:block text-sm text-gray-600 break-words">
-              {(startDate || endDate) ? (typeof dateRangeText === 'object' ? dateRangeText.desktop : dateRangeText) : 'Montant total'}
-            </p>
-            <p className="md:hidden text-sm text-gray-600 break-words">
-              {(startDate || endDate) ? (typeof dateRangeText === 'object' ? dateRangeText.mobile : dateRangeText) : 'Total'}
-            </p>
+          <div className="text-xs text-gray-600">
+            {filteredTransfers.length} virement{filteredTransfers.length > 1 ? 's' : ''}
           </div>
         </div>
         
-        <div className="space-y-3">
-          <div className="text-center">
-            <div className={`text-3xl md:text-4xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {new Intl.NumberFormat('fr-FR', { 
-                style: 'currency', 
-                currency: 'EUR',
-                minimumFractionDigits: 2
-              }).format(balance)}
-            </div>
-            <div className="text-base text-gray-600 mt-2 font-medium">
-              {balance >= 0 ? 'Solde positif' : 'Solde négatif'}
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-200 pt-4">
-            <div className="flex items-center justify-between text-base mb-3">
-              <div className="flex items-center text-green-600 min-w-0">
-                <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center mr-2">
-                  <TrendingUp className="h-3 w-3 text-green-600" />
-                </div>
-                <span className="truncate font-medium">Virements reçus</span>
-              </div>
-              <span className="font-bold text-green-600 ml-2">
-                +{new Intl.NumberFormat('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR',
-                  maximumFractionDigits: 0 
-                }).format(totalIncoming)}
-              </span>
-            </div>
-            
-            <div className="flex items-center justify-between text-base mb-3">
-              <div className="flex items-center text-red-600 min-w-0">
-                <div className="w-6 h-6 bg-red-100 rounded-lg flex items-center justify-center mr-2">
-                  <TrendingDown className="h-3 w-3 text-red-600" />
-                </div>
-                <span className="truncate font-medium">Virements envoyés</span>
-              </div>
-              <span className="font-bold text-red-600 ml-2">
-                -{new Intl.NumberFormat('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR',
-                  maximumFractionDigits: 0 
-                }).format(totalOutgoing)}
-              </span>
-            </div>
-            
-            <div className="flex items-center justify-between text-base mb-3">
-              <div className="flex items-center text-orange-600 min-w-0">
-                <div className="w-6 h-6 bg-orange-100 rounded-lg flex items-center justify-center mr-2">
-                  <Percent className="h-3 w-3 text-orange-600" />
-                </div>
-                <span className="truncate font-medium">Commissions</span>
-              </div>
-              <span className="font-bold text-orange-600 ml-2">
-                -{new Intl.NumberFormat('fr-FR', { 
-                  style: 'currency', 
-                  currency: 'EUR',
-                  maximumFractionDigits: 0 
-                }).format(totalCommissions)}
-              </span>
-            </div>
-          </div>
-          
-          {balance < 1000 && balance > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
-              <div className="flex items-center">
-                <div className="text-amber-600 text-sm font-medium">
-                  ⚠️ Solde faible - Moins de 1 000€ restant
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {balance <= 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4">
-              <div className="flex items-center">
-                <div className="text-red-600 text-sm font-medium">
-                  ❌ Solde insuffisant pour nouveaux virements
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Balance Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-full min-w-0">
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 min-w-0">
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-green-800">Total reçu</div>
-                <div className="text-lg font-bold text-green-700 truncate">
-                  {new Intl.NumberFormat('fr-FR', { 
-                    style: 'currency', 
-                    currency: 'EUR',
-                    maximumFractionDigits: 0 
-                  }).format(totalIncoming)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 min-w-0">
-              <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                <TrendingDown className="h-4 w-4 text-red-600" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-red-800">Total envoyé</div>
-                <div className="text-lg font-bold text-red-700 truncate">
-                  {new Intl.NumberFormat('fr-FR', { 
-                    style: 'currency', 
-                    currency: 'EUR',
-                    maximumFractionDigits: 0 
-                  }).format(totalOutgoing)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 min-w-0">
-              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Percent className="h-4 w-4 text-orange-600" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-orange-800">Commissions</div>
-                <div className="text-lg font-bold text-orange-700 truncate">
-                  {new Intl.NumberFormat('fr-FR', { 
-                    style: 'currency', 
-                    currency: 'EUR',
-                    maximumFractionDigits: 0 
-                  }).format(totalCommissions)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className={`${balance >= 0 ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200' : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'} border rounded-2xl p-4 shadow-sm`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 min-w-0">
-              <div className={`w-8 h-8 ${balance >= 0 ? 'bg-blue-100' : 'bg-red-100'} rounded-lg flex items-center justify-center`}>
-                <Wallet className={`h-4 w-4 ${balance >= 0 ? 'text-blue-600' : 'text-red-600'}`} />
-              </div>
-              <div className="min-w-0">
-                <div className={`text-sm font-semibold ${balance >= 0 ? 'text-blue-800' : 'text-red-800'}`}>
-                  Solde actuel
-                </div>
-                <div className={`text-lg font-bold ${balance >= 0 ? 'text-blue-700' : 'text-red-700'} truncate`}>
-                  {new Intl.NumberFormat('fr-FR', { 
-                    style: 'currency', 
-                    currency: 'EUR',
-                    maximumFractionDigits: 0 
-                  }).format(balance)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Collapsible Transfer Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 max-w-full min-w-0 overflow-hidden">
-        <button
-          onClick={toggleTransferSection}
-          className="w-full p-6 flex items-center justify-between text-left hover:bg-gray-50 transition-colors min-w-0"
-        >
-          <div className="flex items-center space-x-3 min-w-0">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
-              <ArrowRightLeft className="h-6 w-6 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-xl font-bold text-gray-900">Gérer les virements</h3>
-              <p className="text-sm text-gray-600 break-words">
-                Créer nouveaux virements
-              </p>
-            </div>
-          </div>
-          <ChevronDown className={`h-6 w-6 text-gray-400 transition-transform flex-shrink-0 ${showTransferSection ? 'rotate-180' : ''}`} />
-        </button>
-        
-        {showTransferSection && (
-          <div className="px-6 pb-6 space-y-4">
-            {/* Transfer Form */}
-            <TransferForm
-              clientId={client.id}
-              onSubmit={handleTransferSubmit}
-              loading={loading}
-              incomingTransfers={incomingTransfers}
-              allTransfers={filteredTransfers}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Début</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs"
             />
           </div>
-        )}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Fin</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-xs"
+            />
+          </div>
+        </div>
+        
+        <div className="flex space-x-1 mt-2">
+          <button
+            onClick={setCurrentMonth}
+            className="flex-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors font-medium"
+          >
+            Ce mois
+          </button>
+          <button
+            onClick={clearDateFilter}
+            className="flex-1 px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors font-medium flex items-center justify-center"
+          >
+            <X className="h-3 w-3 mr-1" />
+            Effacer
+          </button>
+        </div>
+      </div>
+        
+        {/* Transfer Management Section */}
+        <div className="xl:col-span-4 bg-white rounded-2xl shadow-sm border border-gray-100 max-w-full min-w-0 overflow-hidden">
+          {/* Mobile Header with Collapse */}
+          <button
+            onClick={toggleTransferSection}
+            className="xl:hidden w-full p-6 flex items-center justify-between text-left hover:bg-gray-50 transition-colors min-w-0"
+          >
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center">
+                <ArrowRightLeft className="h-6 w-6 text-white" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-gray-900">Gérer les virements</h3>
+                <p className="text-xs text-gray-600 break-words">
+                  Créer nouveaux virements
+                </p>
+              </div>
+            </div>
+            <ChevronDown className={`h-6 w-6 text-gray-400 transition-transform flex-shrink-0 ${showTransferSection ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {/* Desktop Header - Always Visible */}
+          <div className="hidden xl:block p-6 border-b border-gray-100">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center">
+                <ArrowRightLeft className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Gérer les virements</h3>
+                <p className="text-sm text-gray-600">Créer nouveaux virements</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Transfer Form - Show on desktop always, on mobile when expanded */}
+          {(showTransferSection || window.innerWidth >= 1280) && (
+            <div className="p-6 border-b border-gray-100">
+              <TransferForm
+                clientId={client.id}
+                onSubmit={handleTransferSubmit}
+                loading={loading}
+                incomingTransfers={incomingTransfers}
+                allTransfers={filteredTransfers}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Transfer History - Always Visible */}
@@ -517,6 +543,8 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
         <TransferList
           transfers={filteredTransfers}
           onStatusUpdate={handleStatusUpdate}
+          onUpdate={handleUpdateTransfer}
+          onDelete={handleDeleteTransfer}
           loading={loading}
           error={error}
         />

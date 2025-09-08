@@ -13,16 +13,13 @@ interface TransferFormProps {
     amount: number;
     transfer_type: 'incoming' | 'outgoing';
     commission_percentage?: number;
-    parent_transfer_id?: string;
     note?: string;
     transfer_date?: string;
   }) => Promise<{ success: boolean; error?: string }>;
   loading?: boolean;
-  incomingTransfers?: Array<{id: string; amount: number; net_amount: number; note?: string}>;
-  allTransfers?: Array<{id: string; parent_transfer_id?: string; net_amount: number; transfer_type: string}>;
 }
 
-const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading = false, incomingTransfers = [], allTransfers = [] }) => {
+const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading = false }) => {
   const { companies } = useCompanies();
   const { commissionRates, loading: commissionLoading } = useCommissionRates();
   const [debitCompanyId, setDebitCompanyId] = useState('');
@@ -30,7 +27,6 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
   const [amount, setAmount] = useState('');
   const [transferType, setTransferType] = useState<'incoming' | 'outgoing'>('outgoing');
   const [commissionPercentage, setCommissionPercentage] = useState(5);
-  const [parentTransferId, setParentTransferId] = useState('');
   const [note, setNote] = useState('');
   const [transferDate, setTransferDate] = useState(() => {
     // Set current date as default
@@ -43,12 +39,6 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
   const [debitSearchTerm, setDebitSearchTerm] = useState('');
   const [creditSearchTerm, setCreditSearchTerm] = useState('');
 
-  // Auto-select first incoming transfer when available
-  React.useEffect(() => {
-    if (transferType === 'outgoing' && incomingTransfers.length > 0 && !parentTransferId) {
-      setParentTransferId(incomingTransfers[0].id);
-    }
-  }, [transferType, incomingTransfers, parentTransferId]);
 
   const selectedDebitCompany = companies.find(c => c.id === debitCompanyId);
   const selectedCreditCompany = companies.find(c => c.id === creditCompanyId);
@@ -82,7 +72,6 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
         amount: amountNum,
         transfer_type: transferType,
         commission_percentage: transferType === 'outgoing' ? commissionPercentage : 0,
-        parent_transfer_id: parentTransferId || undefined,
         note: note.trim() || undefined,
         transfer_date: transferDate
       });
@@ -92,7 +81,6 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
         setDebitCompanyId('');
         setCreditCompanyId('');
         setAmount('');
-        setParentTransferId('');
         setNote('');
         setTransferDate(new Date().toISOString().split('T')[0]);
       } else {
@@ -119,14 +107,6 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
     );
   };
 
-  // Calculate remaining balance for each incoming transfer
-  const calculateRemainingBalance = (incomingTransfer: {id: string; net_amount: number}) => {
-    const usedAmount = allTransfers
-      .filter(t => t.parent_transfer_id === incomingTransfer.id && t.transfer_type === 'outgoing')
-      .reduce((sum, t) => sum + (t.net_amount || 0) + (t.commission_amount || 0), 0);
-    
-    return incomingTransfer.net_amount - usedAmount;
-  };
 
   const AccountSelector: React.FC<{
     label: string;
@@ -141,53 +121,53 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
     const filteredCompanies = filterCompanies(searchTerm);
     
     return (
-    <div className="relative">
+      <div className="relative">
       <label className="block text-sm font-medium text-gray-700 mb-2">
         {label} *
       </label>
       <button
         type="button"
         onClick={onToggle}
-        className="w-full p-4 border border-gray-300 rounded-lg bg-white text-left hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+        className="w-full p-3 border border-gray-300 rounded-lg bg-white text-left hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
         disabled={loading || isSubmitting}
       >
         <div className="flex items-center justify-between">
           {selectedCompany ? (
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold ${
                 type === 'debit' ? 'bg-red-500' : 'bg-green-500'
               }`}>
                 {selectedCompany.name.substring(0, 2).toUpperCase()}
               </div>
               <div>
-                <div className="font-medium text-gray-900">{selectedCompany.name}</div>
-                <div className="text-sm text-gray-500 font-mono">{selectedCompany.rib}</div>
+                <div className="font-medium text-gray-900 text-sm">{selectedCompany.name}</div>
+                <div className="text-xs text-gray-500 font-mono">{selectedCompany.rib}</div>
               </div>
             </div>
           ) : (
-            <span className="text-gray-500">Sélectionnez un compte</span>
+            <span className="text-gray-500 text-sm">Sélectionnez un compte</span>
           )}
-          <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </div>
       </button>
       
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
-          <div className="p-3 border-b border-gray-100 bg-gray-50">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+          <div className="p-2 border-b border-gray-100 bg-gray-50">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-gray-400" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="w-full pl-7 pr-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs"
                 placeholder="Rechercher par nom ou RIB..."
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
           </div>
           {filteredCompanies.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">
+            <div className="p-3 text-center text-gray-500 text-sm">
               {searchTerm ? 'Aucun résultat trouvé' : 'Aucun compte disponible'}
             </div>
           ) : (
@@ -200,16 +180,16 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
                   onSearchChange('');
                   onToggle();
                 }}
-                className="w-full p-3 text-left hover:bg-gray-50 flex items-center space-x-3 border-b border-gray-100 last:border-b-0"
+                className="w-full p-2 text-left hover:bg-gray-50 flex items-center space-x-2 border-b border-gray-100 last:border-b-0"
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-semibold ${
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-semibold ${
                   type === 'debit' ? 'bg-red-500' : 'bg-green-500'
                 }`}>
                   {company.name.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900">{company.name}</div>
-                  <div className="text-sm text-gray-500 font-mono">{company.rib}</div>
+                  <div className="font-medium text-gray-900 text-sm">{company.name}</div>
+                  <div className="text-xs text-gray-500 font-mono">{company.rib}</div>
                 </div>
               </button>
             ))
@@ -221,20 +201,20 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center space-x-3 mb-6">
-        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+      <div className="flex items-center space-x-3 mb-4">
+        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
           {transferType === 'incoming' ? (
-            <ArrowDownCircle className="h-6 w-6 text-green-600" />
+            <ArrowDownCircle className="h-4 w-4 text-green-600" />
           ) : (
-            <ArrowUpCircle className="h-6 w-6 text-blue-600" />
+            <ArrowUpCircle className="h-4 w-4 text-blue-600" />
           )}
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-base font-semibold text-gray-900">
             {transferType === 'incoming' ? 'Virement entrant' : 'Virement sortant'}
           </h3>
-          <p className="text-sm text-gray-500">
+          <p className="text-xs text-gray-500">
             {transferType === 'incoming' 
               ? 'Enregistrer un virement reçu' 
               : 'Effectuer un virement avec commission'
@@ -250,84 +230,46 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* Transfer Type Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Type de virement *
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => {
                 setTransferType('incoming');
                 setCommissionPercentage(0);
               }}
-              className={`p-4 border-2 rounded-lg transition-all flex items-center justify-center space-x-3 ${
+              className={`p-2 border-2 rounded-lg transition-all flex items-center justify-center space-x-2 text-sm ${
                 transferType === 'incoming'
                   ? 'border-green-500 bg-green-50 text-green-700'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <ArrowDownCircle className="h-5 w-5" />
-              <span className="font-medium">Virement entrant</span>
+              <ArrowDownCircle className="h-4 w-4" />
+              <span className="font-medium">Entrant</span>
             </button>
             <button
               type="button"
               onClick={() => setTransferType('outgoing')}
-              className={`p-4 border-2 rounded-lg transition-all flex items-center justify-center space-x-3 ${
+              className={`p-2 border-2 rounded-lg transition-all flex items-center justify-center space-x-2 text-sm ${
                 transferType === 'outgoing'
                   ? 'border-red-500 bg-red-50 text-red-700'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <ArrowUpCircle className="h-5 w-5" />
-              <span className="font-medium">Virement sortant</span>
+              <ArrowUpCircle className="h-4 w-4" />
+              <span className="font-medium">Sortant</span>
             </button>
           </div>
         </div>
 
-        {/* Parent Transfer Selection for Outgoing */}
-        {transferType === 'outgoing' && incomingTransfers.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Utiliser le solde d'un virement entrant (optionnel)
-            </label>
-            <select
-              value={parentTransferId}
-              onChange={(e) => setParentTransferId(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={loading || isSubmitting}
-            >
-              <option value="">Nouveau virement (pas lié à un entrant)</option>
-              {incomingTransfers.map((transfer) => (
-                <option key={transfer.id} value={transfer.id}>
-                  {transfer.note || `Virement de ${transfer.amount}€`} - Solde: {calculateRemainingBalance(transfer)}€
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
 
-        {/* Transfer Date */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Date du virement *
-          </label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="date"
-              value={transferDate}
-              onChange={(e) => setTransferDate(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={loading || isSubmitting}
-              required
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Account Selectors - Side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <AccountSelector
             label={transferType === 'incoming' ? 'Compte créditeur (expéditeur)' : 'Compte à débiter'}
             selectedCompany={selectedDebitCompany}
@@ -357,76 +299,96 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Montant *
-          </label>
-          <div className="relative">
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="0.00"
-              disabled={loading || isSubmitting}
-            />
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <span className="text-gray-500 sm:text-sm">€</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Commission Selection for Outgoing Transfers */}
-        {transferType === 'outgoing' && (
+        {/* Date, Amount, and Commission - Three fields in one row */}
+        <div className={`grid grid-cols-1 gap-4 ${transferType === 'outgoing' ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Commission à prélever *
+              Date du virement *
             </label>
             <div className="relative">
-              <select
-                value={commissionPercentage}
-                onChange={(e) => setCommissionPercentage(parseFloat(e.target.value))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
-                disabled={loading || isSubmitting || commissionLoading}
-              >
-                {commissionRates.map((rate) => (
-                  <option key={rate.id} value={rate.rate}>
-                    {rate.rate}%
-                  </option>
-                ))}
-              </select>
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="date"
+                value={transferDate}
+                onChange={(e) => setTransferDate(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                disabled={loading || isSubmitting}
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Montant *
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full px-3 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                placeholder="0.00"
+                disabled={loading || isSubmitting}
+              />
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                <Percent className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-500 text-sm">€</span>
               </div>
             </div>
-          
-            {/* Commission Calculation Display */}
-            {transferType === 'outgoing' && amountNum > 0 && (
-              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-green-600">Montant net à transférer:</span>
-                    <span className="font-medium">
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(netAmount)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-amber-700">
-                    <span>Notre commission ({commissionPercentage}%):</span>
-                    <span>
-                      +{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(calculatedCommission)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-t border-amber-300 pt-1 font-semibold text-blue-700">
-                    <span>Montant total débité:</span>
-                    <span className="font-bold">
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(grossAmount)}
-                    </span>
-                  </div>
+          </div>
+
+          {/* Commission Selection for Outgoing Transfers */}
+          {transferType === 'outgoing' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Commission à prélever *
+              </label>
+              <div className="relative">
+                <select
+                  value={commissionPercentage}
+                  onChange={(e) => setCommissionPercentage(parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none text-sm"
+                  disabled={loading || isSubmitting || commissionLoading}
+                >
+                  {commissionRates.map((rate) => (
+                    <option key={rate.id} value={rate.rate}>
+                      {rate.rate}%
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <Percent className="h-3 w-3 text-gray-400" />
                 </div>
               </div>
-            )}
+            </div>
+          )}
+        </div>
+
+        {/* Commission Calculation Display */}
+        {transferType === 'outgoing' && amountNum > 0 && (
+          <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-green-600">Montant net à transférer:</span>
+                <span className="font-medium">
+                  {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(netAmount)}
+                </span>
+              </div>
+              <div className="flex justify-between text-amber-700">
+                <span>Notre commission ({commissionPercentage}%):</span>
+                <span>
+                  +{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(calculatedCommission)}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-amber-300 pt-1 font-semibold text-blue-700">
+                <span>Montant total débité:</span>
+                <span className="font-bold">
+                  {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(grossAmount)}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -434,26 +396,21 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Note (optionnel)
           </label>
-          {commissionLoading && (
-            <div className="mb-2 text-sm text-gray-500">
-              Chargement des taux de commission...
-            </div>
-          )}
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
+            rows={2}
             placeholder="Ajouter une note pour ce virement..."
             disabled={loading || isSubmitting}
           />
         </div>
 
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-end pt-2">
           <button
             type="submit"
             disabled={isSubmitting || loading || !debitCompanyId || !creditCompanyId || !amount}
-            className={`px-6 py-3 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center ${
+            className={`px-4 py-2 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm ${
               transferType === 'incoming' 
                 ? 'bg-green-600 hover:bg-green-700' 
                 : 'bg-red-600 hover:bg-red-700'
@@ -462,7 +419,7 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
             {isSubmitting && (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
             )}
-            <Send className="h-4 w-4 mr-2" />
+            <Send className="h-3 w-3 mr-1" />
             {isSubmitting 
               ? 'Création...' 
               : transferType === 'incoming' 

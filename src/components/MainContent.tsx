@@ -6,11 +6,11 @@ interface MainContentProps {
 
 const MainContent: React.FC<MainContentProps> = ({ activeSection }) => {
   // Lazy load RibManager only when needed
-  const RibManager = React.lazy(() => import('./rib/RibManager'));
-  const ClientsManager = React.lazy(() => import('./clients/ClientsManager'));
-  const MovementsManager = React.lazy(() => import('./movements/MovementsManager'));
-  const CommissionsManager = React.lazy(() => import('./commissions/CommissionsManager'));
-  const Dashboard = React.lazy(() => import('./Dashboard'));
+  const RibManager = React.lazy(() => import('./rib/RibManager').then(module => ({ default: module.RibManager })));
+  const ClientsManager = React.lazy(() => import('./clients/ClientsManager').then(module => ({ default: module.default })));
+  const MovementsManager = React.lazy(() => import('./movements/MovementsManager').then(module => ({ default: module.default })));
+  const CommissionsManager = React.lazy(() => import('./commissions/CommissionsManager').then(module => ({ default: module.default })));
+  const Dashboard = React.lazy(() => import('./Dashboard').then(module => ({ default: module.default })));
 
   const getSectionContent = () => {
     switch (activeSection) {
