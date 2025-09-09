@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, User, Mail, Phone, Wallet, TrendingUp, TrendingDown, Calendar, Filter, X, ArrowRightLeft, ChevronDown, Percent } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Wallet, TrendingUp, TrendingDown, Calendar, Filter, X, ArrowRightLeft, ChevronDown, Percent, Printer } from 'lucide-react';
 import { useTransfers } from '../../hooks/useTransfers';
 import type { Client } from '../../lib/supabase';
 import TransferForm from './TransferForm';
@@ -133,6 +133,291 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
     return await updateTransfer(transferId, updates);
   };
 
+  // Helper functions for print report
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR');
+  };
+
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  const handlePrint = () => {
+    // Create a hidden iframe for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '-9999px';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    
+    document.body.appendChild(iframe);
+    
+    const printContent = generatePrintContent();
+    
+    // Write content to iframe
+    if (iframe.contentWindow) {
+      iframe.contentWindow.document.open();
+      iframe.contentWindow.document.write(printContent);
+      iframe.contentWindow.document.close();
+      
+      // Wait for content to load then print
+      setTimeout(() => {
+        if (iframe.contentWindow) {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          
+          // Clean up after printing
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 1000);
+        }
+      }, 500);
+    }
+  };
+
+  const generatePrintContent = () => {
+    // Calculate totals within the function to ensure they're available
+    const completedTransfers = filteredTransfers.filter(t => t.status === 'completed');
+    
+    const calculatedTotalIncoming = completedTransfers
+      .filter(t => t.transfer_type === 'incoming')
+      .reduce((sum, t) => sum + (t.net_amount || t.amount || 0), 0);
+    
+    const calculatedTotalOutgoing = completedTransfers
+      .filter(t => t.transfer_type === 'outgoing')
+      .reduce((sum, t) => sum + (t.net_amount || 0), 0);
+    
+    const calculatedTotalCommissions = completedTransfers
+      .filter(t => t.transfer_type === 'outgoing')
+      .reduce((sum, t) => sum + (t.commission_amount || 0), 0);
+    
+    const calculatedBalance = calculatedTotalIncoming - calculatedTotalOutgoing - calculatedTotalCommissions;
+
+    // Calculate movement counts
+    const incomingCount = filteredTransfers.filter(t => t.transfer_type === 'incoming').length;
+    const outgoingCount = filteredTransfers.filter(t => t.transfer_type === 'outgoing').length;
+    
+    const dateRangeText = formatDateRange();
+    const periodText = typeof dateRangeText === 'object' ? dateRangeText.desktop : dateRangeText;
+    
+    const transferRows = filteredTransfers.map(transfer => {
+      const isIncoming = transfer.transfer_type === 'incoming';
+      const statusLabel = transfer.status === 'completed' ? 'Terminé' : 
+                         transfer.status === 'failed' ? 'Échoué' : 'En attente';
+      
+      return `
+        <tr>
+          <td>${formatDate(transfer.created_at)}</td>
+          <td>${isIncoming ? 'Entrant' : 'Sortant'}</td>
+          <td>${transfer.debit_company?.name || ''}</td>
+          <td>${transfer.credit_company?.name || ''}</td>
+          <td>${transfer.note || '-'}</td>
+          <td style="text-align: right;">${isIncoming ? '+' : '-'}${formatAmount(transfer.net_amount || transfer.amount)}</td>
+          <td style="text-align: right;">${!isIncoming && transfer.commission_amount > 0 ? formatAmount(transfer.commission_amount) : '-'}</td>
+          <td style="text-align: center;">${statusLabel}</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Relevé de mouvements - ${client.name}</title>
+          <style>
+            @media print {
+              @page {
+                margin: 15px;
+                size: A4;
+              }
+              
+              body {
+                font-family: Arial, sans-serif;
+                font-size: 11px;
+                line-height: 1.3;
+                color: #000;
+                margin: 0;
+                padding: 0;
+              }
+              
+              .header {
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #000;
+                padding-bottom: 10px;
+              }
+              
+              .header h1 {
+                font-size: 18px;
+                font-weight: bold;
+                margin: 0 0 5px 0;
+              }
+              
+              .header h2 {
+                font-size: 14px;
+                font-weight: normal;
+                margin: 0;
+                color: #666;
+              }
+              
+              .period-info {
+                text-align: center;
+                margin-bottom: 15px;
+                font-weight: bold;
+              }
+              
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 20px;
+              }
+              
+              th, td {
+                border: 1px solid #ccc;
+                padding: 4px 6px;
+                vertical-align: top;
+              }
+              
+              th {
+                background-color: #f0f0f0;
+                font-weight: bold;
+                text-align: center;
+                font-size: 10px;
+              }
+              
+              td {
+                font-size: 10px;
+              }
+              
+              .summary {
+                border: 2px solid #000;
+                padding: 10px;
+                margin-top: 20px;
+              }
+              
+              .summary h3 {
+                margin: 0 0 10px 0;
+                font-size: 14px;
+                text-align: center;
+              }
+              
+              .summary-table {
+                border: none;
+                margin-bottom: 0;
+              }
+              
+              .summary-table td {
+                border: none;
+                padding: 3px 0;
+                font-weight: bold;
+              }
+              
+              .summary-table .label {
+                width: 60%;
+              }
+              
+              .summary-table .amount {
+                width: 40%;
+                text-align: right;
+              }
+              
+              .positive { color: #059669; }
+              .negative { color: #DC2626; }
+              .neutral { color: #000; }
+              
+              .footer {
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+                text-align: center;
+                font-size: 9px;
+                color: #666;
+                border-top: 1px solid #ccc;
+                padding-top: 5px;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>RELEVÉ DE MOUVEMENTS</h1>
+            <h2>${client.name}</h2>
+          </div>
+          
+          <div class="period-info">
+            Période: ${periodText}
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 12%;">Date</th>
+                <th style="width: 10%;">Type</th>
+                <th style="width: 18%;">Compte Débiteur</th>
+                <th style="width: 18%;">Compte Créditeur</th>
+                <th style="width: 20%;">Note</th>
+                <th style="width: 12%;">Montant</th>
+                <th style="width: 10%;">Commission</th>
+                <th style="width: 10%;">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${transferRows}
+            </tbody>
+          </table>
+          
+          <div class="summary">
+            <h3>RÉSUMÉ DE LA PÉRIODE</h3>
+            <table class="summary-table">
+              <tr>
+                <td class="label">Total Reçu (Virements entrants):</td>
+                <td class="amount positive">+${formatAmount(calculatedTotalIncoming)}</td>
+              </tr>
+              <tr>
+                <td class="label">Total Envoyé (Virements sortants):</td>
+                <td class="amount negative">-${formatAmount(calculatedTotalOutgoing)}</td>
+              </tr>
+              <tr>
+                <td class="label">Total Commissions:</td>
+                <td class="amount negative">-${formatAmount(calculatedTotalCommissions)}</td>
+              </tr>
+              <tr style="border-top: 2px solid #000;">
+                <td class="label" style="font-size: 12px; padding-top: 8px;">SOLDE NET DE LA PÉRIODE:</td>
+                <td class="amount ${calculatedBalance >= 0 ? 'positive' : 'negative'}" style="font-size: 12px; padding-top: 8px;">
+                  ${formatAmount(calculatedBalance)}
+                </td>
+              </tr>
+              <tr>
+                <td class="label">Nombre total de mouvements:</td>
+                <td class="amount neutral">${filteredTransfers.length}</td>
+              </tr>
+              <tr>
+                <td class="label">Nombre de virements entrants:</td>
+                <td class="amount neutral">${incomingCount}</td>
+              </tr>
+              <tr>
+                <td class="label">Nombre de virements sortants:</td>
+                <td class="amount neutral">${outgoingCount}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div class="footer">
+            ABC Gestion - Relevé généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
   // Calculate client balance based on filtered transfers
   const calculateBalance = () => {
     const completedTransfers = filteredTransfers.filter(t => t.status === 'completed');
@@ -188,6 +473,15 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
             </div>
           </div>
         </div>
+        
+        <button
+          onClick={handlePrint}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          title="Imprimer le relevé"
+        >
+          <Printer className="h-4 w-4" />
+          <span className="hidden sm:inline">Imprimer</span>
+        </button>
       </div>
 
       {/* Summary Cards */}

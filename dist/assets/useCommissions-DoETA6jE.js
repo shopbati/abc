@@ -1,0 +1,6 @@
+import{r,s as E}from"./index-PA-U-bDe.js";const A=(n,i)=>{const[y,g]=r.useState([]),[C,l]=r.useState(!0),[h,u]=r.useState(null),_=async()=>{try{l(!0),u(null);let s=E.from("transfers").select(`
+          commission_amount,
+          created_at,
+          debit_company_id,
+          debit_company:companies!transfers_debit_company_id_fkey(*)
+        `).eq("transfer_type","outgoing").eq("status","completed").gt("commission_amount",0);n&&(s=s.gte("created_at",n)),i&&(s=s.lte("created_at",i+"T23:59:59.999Z"));const{data:c,error:d}=await s;if(d)throw d;const a=new Map;c==null||c.forEach(o=>{const t=o.debit_company_id,p=o.debit_company,m=o.commission_amount||0,f=o.created_at;if(p&&m>0)if(a.has(t)){const e=a.get(t);e.totalCommissions+=m,e.transferCount+=1,(!e.lastTransferDate||f>e.lastTransferDate)&&(e.lastTransferDate=f)}else a.set(t,{company:p,totalCommissions:m,transferCount:1,lastTransferDate:f})});const b=Array.from(a.values()).sort((o,t)=>t.totalCommissions-o.totalCommissions);g(b)}catch(s){u(s instanceof Error?s.message:"An error occurred"),console.error("Error fetching commissions:",s)}finally{l(!1)}};return r.useEffect(()=>{_()},[n,i]),{commissionsData:y,loading:C,error:h,refetch:_}};export{A as u};

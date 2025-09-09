@@ -11,6 +11,7 @@ const MainContent: React.FC<MainContentProps> = ({ activeSection }) => {
   const MovementsManager = React.lazy(() => import('./movements/MovementsManager').then(module => ({ default: module.default })));
   const CommissionsManager = React.lazy(() => import('./commissions/CommissionsManager').then(module => ({ default: module.default })));
   const Dashboard = React.lazy(() => import('./Dashboard').then(module => ({ default: module.default })));
+  const Calculator = React.lazy(() => import('./calculator/Calculator').then(module => ({ default: module.default })));
 
   const getSectionContent = () => {
     switch (activeSection) {
@@ -62,6 +63,16 @@ const MainContent: React.FC<MainContentProps> = ({ activeSection }) => {
             </div>
           }>
             <CommissionsManager />
+          </React.Suspense>
+        );
+      case 'calculator':
+        return (
+          <React.Suspense fallback={
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          }>
+            <Calculator />
           </React.Suspense>
         );
       default:
