@@ -211,10 +211,9 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
       const isIncoming = transfer.transfer_type === 'incoming';
       const statusLabel = transfer.status === 'completed' ? 'Terminé' : 
                          transfer.status === 'failed' ? 'Échoué' : 'En attente';
-      const rowBgColor = isIncoming ? 'background-color: #dcfce7;' : 'background-color: #fecaca;';
       
       return `
-        <tr style="${rowBgColor}">
+        <tr class="${isIncoming ? 'incoming-row' : 'outgoing-row'}">
           <td>${formatDate(transfer.created_at)}</td>
           <td>${isIncoming ? 'Entrant' : 'Sortant'}</td>
           <td>${transfer.debit_company?.name || ''}</td>
@@ -247,6 +246,12 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                 color: #000;
                 margin: 0;
                 padding: 0;
+              }
+              
+              * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
               
               .header {
@@ -343,6 +348,45 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                 color: #666;
                 border-top: 1px solid #ccc;
                 padding-top: 5px;
+              }
+              
+              /* Transfer row colors */
+              .incoming-row {
+                background-color: #dcfce7 !important;
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              
+              .outgoing-row {
+                background-color: #fecaca !important;
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              
+              /* Override any default table striping */
+              tbody tr {
+                background-color: inherit !important;
+              }
+            }
+            
+            @media screen {
+              body {
+                font-family: Arial, sans-serif;
+                font-size: 11px;
+                line-height: 1.3;
+                color: #000;
+                margin: 0;
+                padding: 20px;
+              }
+              
+              .incoming-row {
+                background-color: #dcfce7;
+              }
+              
+              .outgoing-row {
+                background-color: #fecaca;
               }
             }
           </style>
