@@ -78,8 +78,8 @@ const TransferForm: React.FC<TransferFormProps> = ({ clientId, onSubmit, loading
 
       if (result.success) {
         // Reset form
-        setDebitCompanyId('');
-        setCreditCompanyId('');
+        // Preserve: Compte à débiter, Compte bénéficiaire, Commission à prélever
+        // Only reset: Amount, Note, and Date
         setAmount('');
         setNote('');
         setTransferDate(new Date().toISOString().split('T')[0]);

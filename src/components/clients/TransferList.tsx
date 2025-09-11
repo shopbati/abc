@@ -239,7 +239,7 @@ const TransferList: React.FC<TransferListProps> = ({ transfers, onStatusUpdate, 
                       </div>
                       {!isIncoming && transfer.commission_amount > 0 && (
                         <div className="text-xs text-orange-600">
-                          Commission: {formatAmount(transfer.commission_amount)}
+                          Commission {transfer.commission_percentage}%: {formatAmount(transfer.commission_amount)}
                         </div>
                       )}
                     </div>

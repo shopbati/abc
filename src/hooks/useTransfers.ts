@@ -74,6 +74,7 @@ export const useTransfers = (clientId?: string) => {
         commission_percentage: commissionPercentage,
         commission_amount: commissionAmount,
         net_amount: netAmount,
+        status: 'completed', // Auto-complete transfers without validation
         // If transfer_date is provided, use it, otherwise use current timestamp
         ...(transfer_date && { 
           created_at: new Date(transfer_date).toISOString() 

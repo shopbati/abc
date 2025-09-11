@@ -211,9 +211,10 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
       const isIncoming = transfer.transfer_type === 'incoming';
       const statusLabel = transfer.status === 'completed' ? 'Terminé' : 
                          transfer.status === 'failed' ? 'Échoué' : 'En attente';
+      const rowBgColor = isIncoming ? 'background-color: #dcfce7;' : 'background-color: #fecaca;';
       
       return `
-        <tr>
+        <tr style="${rowBgColor}">
           <td>${formatDate(transfer.created_at)}</td>
           <td>${isIncoming ? 'Entrant' : 'Sortant'}</td>
           <td>${transfer.debit_company?.name || ''}</td>
@@ -262,7 +263,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
               }
               
               .header h2 {
-                font-size: 14px;
+                font-size: 18px;
                 font-weight: normal;
                 margin: 0;
                 color: #666;
@@ -349,7 +350,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
         <body>
           <div class="header">
             <h1>RELEVÉ DE MOUVEMENTS</h1>
-            <h2>${client.name}</h2>
+            <h2 style="font-size: 18px;">${client.name}</h2>
           </div>
           
           <div class="period-info">
