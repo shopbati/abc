@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, Users, Activity, Percent, TrendingUp, Calculator } from 'lucide-react';
+import { Building2, Users, Activity, Percent, TrendingUp, BookUser } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -25,6 +25,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, activeItem, onItemClick }) =>
       icon: Users,
     },
     {
+      id: 'contacts',
+      label: 'Contacts',
+      icon: BookUser,
+    },
+    {
       id: 'operations',
       label: 'Mouvements',
       icon: TrendingUp,
@@ -33,11 +38,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, activeItem, onItemClick }) =>
       id: 'commissions',
       label: 'Commissions',
       icon: Percent,
-    },
-    {
-      id: 'calculator',
-      label: 'Calculatrice',
-      icon: Calculator,
     },
   ];
 

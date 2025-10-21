@@ -8,10 +8,10 @@ const MainContent: React.FC<MainContentProps> = ({ activeSection }) => {
   // Lazy load RibManager only when needed
   const RibManager = React.lazy(() => import('./rib/RibManager').then(module => ({ default: module.RibManager })));
   const ClientsManager = React.lazy(() => import('./clients/ClientsManager').then(module => ({ default: module.default })));
+  const ContactsManager = React.lazy(() => import('./contacts/ContactsManager').then(module => ({ default: module.default })));
   const MovementsManager = React.lazy(() => import('./movements/MovementsManager').then(module => ({ default: module.default })));
   const CommissionsManager = React.lazy(() => import('./commissions/CommissionsManager').then(module => ({ default: module.default })));
   const Dashboard = React.lazy(() => import('./Dashboard').then(module => ({ default: module.default })));
-  const Calculator = React.lazy(() => import('./calculator/Calculator').then(module => ({ default: module.default })));
 
   const getSectionContent = () => {
     switch (activeSection) {
@@ -45,6 +45,16 @@ const MainContent: React.FC<MainContentProps> = ({ activeSection }) => {
             <ClientsManager />
           </React.Suspense>
         );
+      case 'contacts':
+        return (
+          <React.Suspense fallback={
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          }>
+            <ContactsManager />
+          </React.Suspense>
+        );
       case 'operations':
         return (
           <React.Suspense fallback={
@@ -63,16 +73,6 @@ const MainContent: React.FC<MainContentProps> = ({ activeSection }) => {
             </div>
           }>
             <CommissionsManager />
-          </React.Suspense>
-        );
-      case 'calculator':
-        return (
-          <React.Suspense fallback={
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          }>
-            <Calculator />
           </React.Suspense>
         );
       default:
